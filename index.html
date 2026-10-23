@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Amazon Explorer - Corrida Infinita</title>
+    <!-- Tailwind CSS para UI -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Poppins:wght@400;600;800&display=swap');
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: #0d1b1e;
+            color: #fff;
+            user-select: none;
+            touch-action: manipulation;
+        }
+
+        .pixel-font {
+            font-family: 'Press Start 2P', cursive;
+        }
+
+        /* Moldura retrô para a tela do jogo */
+        .game-container {
+            position: relative;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 20px rgba(34, 197, 94, 0.3);
+            border: 4px solid #15803d;
+            border-radius: 1rem;
+            overflow: hidden;
+            background-color: #052e16;
+        }
+
+        /* Animações CSS para menus e UI */
+        .pulse-slow {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.85; transform: scale(1.03); }
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            image-rendering: pixelated;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-4">
+
+    <!-- Container Principal -->
+    <div class="w-full max-w-4xl flex flex-col items-center">
+        
+        <!-- Cabeçalho -->
+        <header class="text-center mb-4">
+            <h1 class="text-3xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-green-400 via-emerald-300 to-yellow-400 tracking-wider">
+                AMAZON EXPLORER
+            </h1>
+            <p class="text-green-300 text-xs md:text-sm mt-1">Fugindo da Fúria do Gorila na Selva!</p>
+        </header>
+
+        <!-- Área do Jogo Canvas -->
+        <div class="game-container w-full aspect-[2/1] relative max-h-[450px]">
+            <canvas id="gameCanvas" width="900" height="450"></canvas>
+
+            <!-- Overlay da Tela de Início -->
+            <div id="startScreen" class="absolute inset-0 bg-black/75 backdrop-blur-sm flex flex-col items-center justify-center z-10 p-6 text-center">
+                <div class="bg-emerald-950/80 border-2 border-emerald-500 rounded-2xl p-6 md:p-8 max-w-md w-full shadow-2xl">
+                    <h2 class="pixel-font text-yellow-400 text-xl md:text-2xl mb-4">FUJA DO GORILA!</h2>
+                    <p class="text-gray-200 text-sm mb-6 leading-relaxed">
+                        Corra pela Floresta Amazônica, desvie de troncos, pedras e tucanos famintos enquanto coleta açaís e guaranás energéticos!
+                    </p>
+
+                    <!-- Guia de Controles -->
+                    <div class="grid grid-cols-2 gap-3 text-xs mb-6 text-left bg-emerald-900/50 p-3 rounded-lg border border-emerald-700/50">
+                        <div class="flex items-center space-x-2">
+                            <span class="bg-emerald-700 px-2 py-1 rounded text-yellow-300 font-bold">ESPAÇO / ▲</span>
+                            <span>Pular</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="bg-emerald-700 px-2 py-1 rounded text-yellow-300 font-bold">SETA ▼</span>
+                            <span>Agachar</span>
+                        </div>
+                    </div>
+
+                    <button id="startBtn" class="pulse-slow w-full py-3 bg-gradient-to-r from-yellow-500 to-amber-600 hover:from-yellow-400 hover:to-amber-500 text-slate-900 font-extrabold text-lg rounded-xl shadow-lg transform transition active:scale-95 uppercase tracking-wide">
+                        Começar Aventura
+                    </button>
+                </div>
+            </div>
+
+            <!-- Overlay da Tela de Game Over -->
+            <div id="gameOverScreen" class="hidden absolute inset-0 bg-black/85 backdrop-blur-md flex flex-col items-center justify-center z-10 p-6 text-center">
+                <div class="bg-red-950/80 border-2 border-red-500 rounded-2xl p-6 md:p-8 max-w-md w-full shadow-2xl">
+                    <h2 class="pixel-font text-red-500 text-2xl md:text-3xl mb-2">FIM DE JOGO</h2>
+                    <p id="gameOverReason" class="text-gray-300 text-sm mb-4">O gorila te alcançou!</p>
+                    
+                    <!-- Placar Final -->
+                    <div class="bg-black/50 p-4 rounded-xl border border-red-800/40 mb-6 flex justify-around">
+                        <div>
+                            <span class="block text-xs text-gray-400 uppercase">Pontuação</span>
+                            <span id="finalScore" class="pixel-font text-yellow-400 text-xl">0</span>
+                        </div>
+                        <div class="border-r border-red-800/40"></div>
+                        <div>
+                            <span class="block text-xs text-gray-400 uppercase">Melhor Recorde</span>
+                            <span id="finalHighScore" class="pixel-font text-emerald-400 text-xl">0</span>
+                        </div>
+                    </div>
+
+                    <button id="restartBtn" class="w-full py-3 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 text-white font-extrabold text-lg rounded-xl shadow-lg transform transition active:scale-95 uppercase tracking-wide">
+                        Tentar Novamente
+                    </button>
+                </div>
+            </div>
+
+            <!-- HUD de Jogo (Pontuação em Tempo Real) -->
+            <div id="gameHUD" class="hidden absolute top-4 left-4 right-4 flex justify-between items-center pointer-events-none z-0">
+                <div class="bg-black/60 backdrop-blur-md border border-emerald-500/30 px-4 py-2 rounded-xl flex items-center space-x-3">
+                    <span class="text-xs text-emerald-400 font-bold uppercase">Pontos:</span>
+                    <span id="scoreText" class="pixel-font text-yellow-400 text-lg">00000</span>
+                </div>
+                <div class="bg-black/60 backdrop-blur-md border border-emerald-500/30 px-4 py-2 rounded-xl flex items-center space-x-3">
+                    <span class="text-xs text-emerald-400 font-bold uppercase">Recorde:</span>
+                    <span id="highScoreText" class="pixel-font text-emerald-300 text-lg">00000</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Botões de Controle Touch (Mobile / On-screen) -->
+        <div class="w-full mt-4 grid grid-cols-2 gap-4 max-w-md md:hidden">
+            <button id="touchJump" class="bg-emerald-700 active:bg-emerald-600 text-white font-bold py-4 rounded-xl text-center text-lg shadow-md flex items-center justify-center space-x-2">
+                <span>▲ PULAR</span>
+            </button>
+            <button id="touchDuck" class="bg-amber-700 active:bg-amber-600 text-white font-bold py-4 rounded-xl text-center text-lg shadow-md flex items-center justify-center space-x-2">
+                <span>▼ AGACHAR</span>
+            </button>
+        </div>
+
+        <!-- Dicas abaixo do jogo -->
+        <footer class="mt-4 text-center text-xs text-emerald-400/70">
+            Dica: Colete <strong class="text-yellow-300">Guaraná/Açaí</strong> para impulsionar sua pontuação e mantenha o ritmo para não ser pego!
+        </footer>
+    </div>
+
+    <!-- Script Principal do Jogo -->
+    <script>
+        // Configuração Inicial do Canvas
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Referências da Interface (UI)
+        const startScreen = document.getElementById('startScreen');
+        const gameOverScreen = document.getElementById('gameOverScreen');
+        const gameHUD = document.getElementById('gameHUD');
+        const startBtn = document.getElementById('startBtn');
+        const restartBtn = document.getElementById('restartBtn');
+        const scoreText = document.getElementById('scoreText');
+        const highScoreText = document.getElementById('highScoreText');
+        const finalScore = document.getElementById('finalScore');
+        const finalHighScore = document.getElementById('finalHighScore');
+
+        // Constantes Globais
+        const GROUND_Y = 370;
+        const GRAVITY = 0.65;
+        const INITIAL_SPEED = 6.5;
+
+        // Estado do Jogo
+        let gameState = 'START'; // 'START', 'PLAYING', 'GAMEOVER'
+        let gameSpeed = INITIAL_SPEED;
+        let score = 0;
+        let highScore = localStorage.getItem('amazon_runner_highscore') || 0;
+        let frameCount = 0;
+
+        // Atualizar HUD do HighScore inicial
+        highScoreText.textContent = String(Math.floor(highScore)).padStart(5, '0');
+
+        // Estutura de Teclas Pressionadas
+        const keys = {
+            jump: false,
+            duck: false
+        };
+
+        // --- SISTEMA DE PARTÍCULAS ---
+        let particles = [];
+
+        class Particle {
+            constructor(x, y, color, size, speedX, speedY) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                this.size = size;
+                this.speedX = speedX;
+                this.speedY = speedY;
+                this.alpha = 1;
+            }
+
+            update() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+                this.alpha -= 0.03;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, this.alpha);
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        function createDustParticles(x, y, count = 5) {
+            for (let i = 0; i < count; i++) {
+                const size = Math.random() * 4 + 2;
+                const speedX = (Math.random() - 0.5) * 3 - gameSpeed * 0.2;
+                const speedY = -Math.random() * 2;
+                particles.push(new Particle(x, y, '#8B5A2B', size, speedX, speedY));
+            }
+        }
+
+        function createSparkleParticles(x, y, color, count = 10) {
+            for (let i = 0; i < count; i++) {
+                const size = Math.random() * 5 + 2;
+                const speedX = (Math.random() - 0.5) * 6;
+                const speedY = (Math.random() - 0.5) * 6;
+                particles.push(new Particle(x, y, color, size, speedX, speedY));
+            }
+        }
+
+        // --- CAMADAS DE PARALLAX (CENÁRIO DA AMAZÔNIA) ---
+        class ParallaxLayer {
+            constructor(speedFactor, drawCallback) {
+                this.speedFactor = speedFactor;
+                this.drawCallback = drawCallback;
+                this.x = 0;
+            }
+
+            update() {
+                if (gameState === 'PLAYING') {
+                    this.x -= gameSpeed * this.speedFactor;
+                    if (this.x <= -canvas.width) {
+                        this.x = 0;
+                    }
+                }
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(Math.floor(this.x), 0);
+                this.drawCallback(ctx);
+                ctx.translate(canvas.width, 0);
+                this.drawCallback(ctx);
+                ctx.restore();
+            }
+        }
+
+        // Instâncias das camadas de fundo
+        const layerSky = new ParallaxLayer(0.05, (c) => {
+            let grad = c.createLinearGradient(0, 0, 0, 300);
+            grad.addColorStop(0, '#022c22');
+            grad.addColorStop(0.6, '#065f46');
+            grad.addColorStop(1, '#047857');
+            c.fillStyle = grad;
+            c.fillRect(0, 0, canvas.width, 300);
+
+            c.fillStyle = 'rgba(253, 224, 71, 0.15)';
+            c.beginPath();
+            c.arc(700, 80, 70, 0, Math.PI * 2);
+            c.fill();
+
+            c.fillStyle = 'rgba(255, 255, 255, 0.15)';
+            c.beginPath();
+            c.arc(150, 70, 30, 0, Math.PI * 2);
+            c.arc(180, 60, 40, 0, Math.PI * 2);
+            c.arc(210, 70, 30, 0, Math.PI * 2);
+            c.fill();
+
+            c.beginPath();
+            c.arc(550, 110, 25, 0, Math.PI * 2);
+            c.arc(580, 100, 35, 0, Math.PI * 2);
+            c.arc(610, 110, 25, 0, Math.PI * 2);
+            c.fill();
+        });
+
+        const layerDistantJungle = new ParallaxLayer(0.2, (c) => {
+            c.fillStyle = '#064e3b';
+            for (let i = 0; i < canvas.width; i += 60) {
+                c.beginPath();
+                c.arc(i + 30, 260, 50, 0, Math.PI, true);
+                c.fill();
+            }
+        });
+
+        const layerMidJungle = new ParallaxLayer(0.5, (c) => {
+            c.fillStyle = '#047857';
+            for (let i = 0; i < canvas.width; i += 120) {
+                c.fillStyle = '#065f46';
+                c.fillRect(i + 40, 180, 16, 150);
+                c.fillStyle = '#059669';
+                c.beginPath();
+                c.arc(i + 48, 170, 45, 0, Math.PI * 2);
+                c.fill();
+            }
+        });
+
+        const layerGround = new ParallaxLayer(1.0, (c) => {
+            c.fillStyle = '#15803d';
+            c.fillRect(0, GROUND_Y, canvas.width, 80);
+
+            c.fillStyle = '#3f2e18';
+            c.fillRect(0, GROUND_Y + 15, canvas.width, 65);
+
+            c.fillStyle = '#22c55e';
+            for (let i = 0; i < canvas.width; i += 25) {
+                c.beginPath();
+                c.moveTo(i, GROUND_Y);
+                c.lineTo(i + 5, GROUND_Y - 8);
+                c.lineTo(i + 10, GROUND_Y);
+                c.fill();
+            }
+
+            c.fillStyle = '#261c0e';
+            for (let i = 10; i < canvas.width; i += 80) {
+                c.fillRect(i, GROUND_Y + 25, 8, 4);
+                c.fillRect(i + 35, GROUND_Y + 45, 12, 5);
+            }
+        });
+
+        // --- CLASSE DO EXPLORADOR (JOGADOR) ---
+        class Player {
+            constructor() {
+                this.x = 180;
+                this.y = GROUND_Y;
+                this.width = 44;
+                this.height = 70;
+                this.velocityY = 0;
+                this.isJumping = false;
+                this.isDucking = false;
+                this.animFrame = 0;
+                this.animTimer = 0;
+            }
+
+            update() {
+                if (keys.jump && !this.isJumping) {
+                    this.velocityY = -13.5;
+                    this.isJumping = true;
+                    createDustParticles(this.x + this.width / 2, GROUND_Y, 8);
+                }
+
+                this.y += this.velocityY;
+                this.velocityY += GRAVITY;
+
+                if (this.y >= GROUND_Y) {
+                    this.y = GROUND_Y;
+                    this.velocityY = 0;
+                    if (this.isJumping) {
+                        createDustParticles(this.x + this.width / 2, GROUND_Y, 5);
+                    }
+                    this.isJumping = false;
+                }
+
+                this.isDucking = keys.duck && !this.isJumping;
+                if (this.isDucking) {
+                    this.height = 40;
+                } else {
+                    this.height = 70;
+                }
+
+                this.animTimer++;
+                if (this.animTimer % 6 === 0) {
+                    this.animFrame = (this.animFrame + 1) % 4;
+                }
+            }
+
+            draw() {
+                ctx.save();
+                let drawY = this.y - this.height;
+
+                ctx.fillStyle = 'rgba(0,0,0,0.3)';
+                ctx.beginPath();
+                ctx.ellipse(this.x + this.width / 2, GROUND_Y + 2, 20, 6, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                if (this.isDucking) {
+                    ctx.fillStyle = '#d97706';
+                    ctx.fillRect(this.x, drawY + 10, 38, 20);
+
+                    ctx.fillStyle = '#78350f';
+                    ctx.fillRect(this.x + 10, drawY, 28, 6);
+                    ctx.fillRect(this.x + 5, drawY + 6, 38, 4);
+
+                    ctx.fillStyle = '#fde047';
+                    ctx.fillRect(this.x + 20, drawY + 10, 14, 12);
+
+                    ctx.fillStyle = '#451a03';
+                    ctx.fillRect(this.x - 4, drawY + 8, 12, 18);
+                } else {
+                    const legOffset = this.isJumping ? 8 : (this.animFrame % 2 === 0 ? 10 : -10);
+
+                    ctx.fillStyle = '#451a03';
+                    ctx.fillRect(this.x + 10, drawY + 40, 12, 15);
+                    ctx.fillRect(this.x + 22, drawY + 40, 12, 15);
+
+                    ctx.fillStyle = '#78350f';
+                    ctx.fillRect(this.x + 8 + legOffset, drawY + 52, 12, 18);
+                    ctx.fillRect(this.x + 24 - legOffset, drawY + 52, 12, 18);
+
+                    ctx.fillStyle = '#d97706';
+                    ctx.fillRect(this.x + 8, drawY + 18, 26, 25);
+
+                    ctx.fillStyle = '#292524';
+                    ctx.fillRect(this.x + 8, drawY + 39, 26, 4);
+
+                    ctx.fillStyle = '#542d13';
+                    ctx.fillRect(this.x - 2, drawY + 16, 12, 24);
+
+                    ctx.fillStyle = '#fca5a5';
+                    ctx.fillRect(this.x + 14, drawY + 6, 18, 16);
+
+                    ctx.fillStyle = '#854d0e';
+                    ctx.fillRect(this.x + 8, drawY, 28, 7);
+                    ctx.fillRect(this.x + 2, drawY + 7, 38, 4);
+
+                    ctx.fillStyle = '#d97706';
+                    ctx.fillRect(this.x + 20 - legOffset, drawY + 22, 8, 16);
+                }
+
+                ctx.restore();
+            }
+
+            getBounds() {
+                return {
+                    x: this.x + 5,
+                    y: this.y - this.height,
+                    width: this.width - 10,
+                    height: this.height
+                };
+            }
+        }
+
+        // --- CLASSE DO GORILA (PERSEGUIDOR) ---
+        class Gorilla {
+            constructor() {
+                this.x = 20;
+                this.y = GROUND_Y;
+                this.width = 85;
+                this.height = 80;
+                this.animFrame = 0;
+            }
+
+            update() {
+                if (frameCount % 8 === 0) {
+                    this.animFrame = (this.animFrame + 1) % 2;
+                }
+                this.x = 15 + Math.sin(frameCount * 0.05) * 5;
+            }
+
+            draw() {
+                ctx.save();
+                let drawY = this.y - this.height;
+
+                ctx.fillStyle = 'rgba(0,0,0,0.4)';
+                ctx.beginPath();
+                ctx.ellipse(this.x + this.width / 2, GROUND_Y + 2, 40, 10, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#1c1917';
+                ctx.beginPath();
+                ctx.ellipse(this.x + 40, drawY + 45, 38, 30, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#44403c';
+                ctx.beginPath();
+                ctx.ellipse(this.x + 52, drawY + 45, 20, 22, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#1c1917';
+                ctx.beginPath();
+                ctx.arc(this.x + 55, drawY + 20, 22, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#292524';
+                ctx.fillRect(this.x + 55, drawY + 15, 20, 16);
+
+                ctx.fillStyle = '#ef4444';
+                ctx.fillRect(this.x + 62, drawY + 14, 4, 3);
+                ctx.fillRect(this.x + 70, drawY + 14, 4, 3);
+
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(this.x + 68, drawY + 27, 3, 4);
+
+                ctx.fillStyle = '#1c1917';
+                let armYOffset = this.animFrame === 0 ? 0 : -12;
+                ctx.fillRect(this.x + 35, drawY + 30 + armYOffset, 22, 45);
+                ctx.fillRect(this.x + 60, drawY + 30 - armYOffset, 20, 45);
+
+                ctx.restore();
+            }
+        }
+
+        // --- CLASSE DE OBSTÁCULOS ---
+        class Obstacle {
+            constructor(type) {
+                this.type = type;
+                this.x = canvas.width + 50;
+                this.markedForDeletion = false;
+
+                if (type === 'LOG') {
+                    this.width = 45;
+                    this.height = 35;
+                    this.y = GROUND_Y;
+                } else if (type === 'ROCK') {
+                    this.width = 50;
+                    this.height = 40;
+                    this.y = GROUND_Y;
+                } else if (type === 'BIRD') {
+                    this.width = 45;
+                    this.height = 35;
+                    this.y = GROUND_Y - 50;
+                    this.wingCycle = 0;
+                }
+            }
+
+            update() {
+                this.x -= gameSpeed;
+                if (this.x + this.width < -50) {
+                    this.markedForDeletion = true;
+                }
+
+                if (this.type === 'BIRD') {
+                    this.wingCycle += 0.2;
+                }
+            }
+
+            draw() {
+                ctx.save();
+
+                if (this.type === 'LOG') {
+                    let drawY = this.y - this.height;
+                    ctx.fillStyle = '#78350f';
+                    ctx.fillRect(this.x, drawY + 5, this.width, this.height - 5);
+                    ctx.fillStyle = '#a16207';
+                    ctx.fillRect(this.x + 5, drawY + 10, 8, this.height - 15);
+                    ctx.fillStyle = '#15803d';
+                    ctx.fillRect(this.x + 12, drawY + 2, 18, 5);
+
+                } else if (this.type === 'ROCK') {
+                    let drawY = this.y - this.height;
+                    ctx.fillStyle = '#57534e';
+                    ctx.beginPath();
+                    ctx.moveTo(this.x, drawY + this.height);
+                    ctx.lineTo(this.x + 10, drawY + 10);
+                    ctx.lineTo(this.x + 30, drawY);
+                    ctx.lineTo(this.x + this.width, drawY + this.height);
+                    ctx.fill();
+
+                    ctx.fillStyle = '#78716c';
+                    ctx.fillRect(this.x + 15, drawY + 12, 12, 10);
+
+                } else if (this.type === 'BIRD') {
+                    let drawY = this.y - this.height;
+                    let wingOffset = Math.sin(this.wingCycle) * 12;
+
+                    ctx.fillStyle = '#0f172a';
+                    ctx.beginPath();
+                    ctx.ellipse(this.x + 20, drawY + 15, 18, 10, 0, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.fillStyle = '#1e293b';
+                    ctx.beginPath();
+                    ctx.moveTo(this.x + 15, drawY + 15);
+                    ctx.lineTo(this.x + 25, drawY + 5 + wingOffset);
+                    ctx.lineTo(this.x + 30, drawY + 15);
+                    ctx.fill();
+
+                    ctx.fillStyle = '#fde047';
+                    ctx.fillRect(this.x + 26, drawY + 10, 8, 10);
+
+                    ctx.fillStyle = '#f97316';
+                    ctx.beginPath();
+                    ctx.moveTo(this.x + 34, drawY + 8);
+                    ctx.lineTo(this.x + 52, drawY + 14);
+                    ctx.lineTo(this.x + 34, drawY + 20);
+                    ctx.fill();
+                }
+
+                ctx.restore();
+            }
+
+            getBounds() {
+                return {
+                    x: this.x + 4,
+                    y: this.y - this.height + 4,
+                    width: this.width - 8,
+                    height: this.height - 8
+                };
+            }
+        }
+
+        // --- CLASSE DE COLETÁVEIS (FRUTAS AMAZÔNICAS) ---
+        class Collectible {
+            constructor() {
+                this.x = canvas.width + 40;
+                this.type = Math.random() > 0.5 ? 'ACAI' : 'GUARANA';
+                this.y = Math.random() > 0.5 ? GROUND_Y - 20 : GROUND_Y - 90;
+                this.size = 25;
+                this.markedForDeletion = false;
+                this.bounceTimer = Math.random() * 10;
+            }
+
+            update() {
+                this.x -= gameSpeed;
+                this.bounceTimer += 0.1;
+
+                if (this.x < -40) {
+                    this.markedForDeletion = true;
+                }
+            }
+
+            draw() {
+                ctx.save();
+                let bounceY = this.y + Math.sin(this.bounceTimer) * 5;
+
+                if (this.type === 'ACAI') {
+                    ctx.fillStyle = '#581c87';
+                    ctx.beginPath();
+                    ctx.arc(this.x, bounceY, 12, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.fillStyle = '#a855f7';
+                    ctx.beginPath();
+                    ctx.arc(this.x - 3, bounceY - 3, 4, 0, Math.PI * 2);
+                    ctx.fill();
+                } else {
+                    ctx.fillStyle = '#dc2626';
+                    ctx.beginPath();
+                    ctx.arc(this.x, bounceY, 12, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.fillStyle = '#ffffff';
+                    ctx.beginPath();
+                    ctx.arc(this.x + 2, bounceY - 1, 5, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.fillStyle = '#000000';
+                    ctx.beginPath();
+                    ctx.arc(this.x + 3, bounceY - 1, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                ctx.restore();
+            }
+
+            getBounds() {
+                return {
+                    x: this.x - 12,
+                    y: this.y - 12,
+                    width: 24,
+                    height: 24
+                };
+            }
+        }
+
+        // Instâncias do Jogo
+        let player = new Player();
+        let gorilla = new Gorilla();
+        let obstacles = [];
+        let collectibles = [];
+        let obstacleTimer = 0;
+        let collectibleTimer = 0;
+
+        // --- SISTEMA DE COLISÃO AABB ---
+        function checkCollision(rect1, rect2) {
+            return (
+                rect1.x < rect2.x + rect2.width &&
+                rect1.x + rect1.width > rect2.x &&
+                rect1.y < rect2.y + rect2.height &&
+                rect1.y + rect1.height > rect2.y
+            );
+        }
+
+        // --- GERENCIAMENTO DE OBSTÁCULOS E COLETÁVEIS ---
+        function handleSpawns() {
+            obstacleTimer++;
+            let minInterval = Math.max(50, 110 - Math.floor(gameSpeed * 3));
+            if (obstacleTimer > minInterval + Math.random() * 40) {
+                const types = ['LOG', 'ROCK', 'BIRD'];
+                const randomType = types[Math.floor(Math.random() * types.length)];
+                obstacles.push(new Obstacle(randomType));
+                obstacleTimer = 0;
+            }
+
+            collectibleTimer++;
+            if (collectibleTimer > 130 + Math.random() * 80) {
+                collectibles.push(new Collectible());
+                collectibleTimer = 0;
+            }
+        }
+
+        // --- LOOP PRINCIPAL DO JOGO (GAME LOOP) ---
+        function gameLoop() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            layerSky.update();
+            layerSky.draw();
+            layerDistantJungle.update();
+            layerDistantJungle.draw();
+            layerMidJungle.update();
+            layerMidJungle.draw();
+            layerGround.update();
+            layerGround.draw();
+
+            if (gameState === 'PLAYING') {
+                frameCount++;
+
+                gameSpeed += 0.0015;
+                score += gameSpeed * 0.1;
+
+                scoreText.textContent = String(Math.floor(score)).padStart(5, '0');
+
+                player.update();
+                gorilla.update();
+
+                handleSpawns();
+
+                for (let i = obstacles.length - 1; i >= 0; i--) {
+                    let obs = obstacles[i];
+                    obs.update();
+                    obs.draw();
+
+                    if (checkCollision(player.getBounds(), obs.getBounds())) {
+                        triggerGameOver('Você tropeçou nos perigos da selva!');
+                    }
+
+                    if (obs.markedForDeletion) {
+                        obstacles.splice(i, 1);
+                    }
+                }
+
+                for (let i = collectibles.length - 1; i >= 0; i--) {
+                    let item = collectibles[i];
+                    item.update();
+                    item.draw();
+
+                    if (checkCollision(player.getBounds(), item.getBounds())) {
+                        score += 150;
+                        createSparkleParticles(item.x, item.y, item.type === 'ACAI' ? '#c084fc' : '#f87171', 12);
+                        collectibles.splice(i, 1);
+                        continue;
+                    }
+
+                    if (item.markedForDeletion) {
+                        collectibles.splice(i, 1);
+                    }
+                }
+
+                for (let i = particles.length - 1; i >= 0; i--) {
+                    particles[i].update();
+                    particles[i].draw();
+                    if (particles[i].alpha <= 0) {
+                        particles.splice(i, 1);
+                    }
+                }
+            }
+
+            player.draw();
+            gorilla.draw();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // --- TELA DE GAME OVER ---
+        function triggerGameOver(reason) {
+            gameState = 'GAMEOVER';
+
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('amazon_runner_highscore', highScore);
+                highScoreText.textContent = String(Math.floor(highScore)).padStart(5, '0');
+            }
+
+            document.getElementById('gameOverReason').textContent = reason;
+            finalScore.textContent = Math.floor(score);
+            finalHighScore.textContent = Math.floor(highScore);
+
+            gameHUD.classList.add('hidden');
+            gameOverScreen.classList.remove('hidden');
+        }
+
+        // --- INICIALIZAÇÃO E REINÍCIO ---
+        function resetGame() {
+            player = new Player();
+            gorilla = new Gorilla();
+            obstacles = [];
+            collectibles = [];
+            particles = [];
+            score = 0;
+            gameSpeed = INITIAL_SPEED;
+            frameCount = 0;
+            obstacleTimer = 0;
+            collectibleTimer = 0;
+
+            gameState = 'PLAYING';
+            gameOverScreen.classList.add('hidden');
+            startScreen.classList.add('hidden');
+            gameHUD.classList.remove('hidden');
+        }
+
+        // --- CONTROLES DE TECLADO E TOUCH ---
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' || e.code === 'ArrowUp') {
+                e.preventDefault();
+                keys.jump = true;
+            }
+            if (e.code === 'ArrowDown') {
+                e.preventDefault();
+                keys.duck = true;
+            }
+
+            if (gameState !== 'PLAYING' && e.code === 'Space') {
+                resetGame();
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (e.code === 'Space' || e.code === 'ArrowUp') {
+                keys.jump = false;
+            }
+            if (e.code === 'ArrowDown') {
+                keys.duck = false;
+            }
+        });
+
+        startBtn.addEventListener('click', resetGame);
+        restartBtn.addEventListener('click', resetGame);
+
+        const touchJump = document.getElementById('touchJump');
+        const touchDuck = document.getElementById('touchDuck');
+
+        touchJump.addEventListener('touchstart', (e) => { e.preventDefault(); keys.jump = true; });
+        touchJump.addEventListener('touchend', (e) => { e.preventDefault(); keys.jump = false; });
+        touchJump.addEventListener('mousedown', () => { keys.jump = true; });
+        touchJump.addEventListener('mouseup', () => { keys.jump = false; });
+
+        touchDuck.addEventListener('touchstart', (e) => { e.preventDefault(); keys.duck = true; });
+        touchDuck.addEventListener('touchend', (e) => { e.preventDefault(); keys.duck = false; });
+        touchDuck.addEventListener('mousedown', () => { keys.duck = true; });
+        touchDuck.addEventListener('mouseup', () => { keys.duck = false; });
+
+        window.onload = () => {
+            requestAnimationFrame(gameLoop);
+        };
+    </script>
+</body>
+</html>
